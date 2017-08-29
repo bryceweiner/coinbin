@@ -23,9 +23,9 @@ $(document).ready(function() {
 		coinjs.addressBalance($("#walletAddress").html(),function(data){
 			if($(data).find("result").text()==1){
 				var v = $(data).find("balance").text()/("1e"+coinjs.decimalPlaces);
-				$("#walletBalance").html(v+" BTC").attr('rel',v).fadeOut().fadeIn();
+				$("#walletBalance").html(v+" "+coinjs.symbol).attr('rel',v).fadeOut().fadeIn();
 			} else {
-				$("#walletBalance").html("0.00 BTC").attr('rel',v).fadeOut().fadeIn();
+				$("#walletBalance").html("0.00 "+coinjs.symbol).attr('rel',v).fadeOut().fadeIn();
 			}
 
 			$("#walletLoader").addClass("hidden");
@@ -218,6 +218,7 @@ $(document).ready(function() {
 			$("#verifyTransactionData tbody").html("");
 
 			$("#verifyTransactionData .ins tbody").html("");
+			$("#verifyTransactionData .fee").addClass("hidden").attr("style", "");
 			$("#verifyTransactionData .fee").addClass("hidden").attr("style", "");
 
 			var inAmountAvailable = 0;
@@ -562,6 +563,20 @@ $(document).ready(function() {
 
 		return true;
 	};
+	
+	$("#sighashType").change(function(){
+		$("#sighashTypeInfo").html($("option:selected",this).attr('rel')).fadeOut().fadeIn();
+	});
+
+	$("#signAdvancedCollapse").click(function(){
+		if($("#signAdvanced").hasClass('hidden')){
+			$("span",this).removeClass('glyphicon-collapse-down').addClass('glyphicon-collapse-up');
+			$("#signAdvanced").removeClass("hidden");
+		} else {
+			$("span",this).removeClass('glyphicon-collapse-up').addClass('glyphicon-collapse-down');
+			$("#signAdvanced").addClass("hidden");
+		}
+	});
 	
 	function _get(value) {
 		var dataArray = (document.location.search).match(/(([a-z0-9\_\[\]]+\=[a-z0-9\_\.\%\@]+))/gi);
@@ -1050,9 +1065,183 @@ $(document).ready(function() {
 						},
 						complete: function(data, status) {
 							$("#rawTransactionStatus").fadeOut().fadeIn();
-							$(thisbtn).hmtl(orig_html).attr('disabled',false);				
+							$(thisbtn).html(orig_html).attr('disabled',false);				
 						}
 					});
+				}
+			}
+		},
+		//BAY listUnspent and Broadcast
+		bitbay: {
+			listUnspent: {
+
+
+				"chainz.cryptoid.info": function(redeem){
+					var api_key = "b8d99d015bfd";
+					var coin_slug = "bay";
+					//console.log("q=unspent&active="+redeem.addr+"&key="+api_key);
+					$.ajax ({
+						type: "GET",
+						url: "https://chainz.cryptoid.info/"+coin_slug+"/api.dws",
+						//url: "http://cryptoz.me/bitbay-playground/api/test.php",
+						//data: 'uid='+coinjs.uid+'&key='+coinjs.key+'&setmodule=bitbay&request=listunspent&address='+redeem.addr,
+						data: "q=unspent&active="+redeem.addr+"&key="+api_key,
+						//data: "q=unspent&active=baLN8KM7q9jizZrXXFLgMkf52bcTyfTieZ&key=b8d99d015bfd",
+						//https://chainz.cryptoid.info/bay/api.dws?q=getreceivedbyaddress&a=BK6mfmNhnxTz1siPecY74KpaRNXaz8Vyj2
+						//dataType: "jsonp",
+						dataType: "json",
+						cache: false,
+						error: function(data) {
+							$("#redeemFromStatus").removeClass('hidden').html('<span class="glyphicon glyphicon-exclamation-sign"></span> Unexpected error 1, unable to retrieve unspent outputs!');
+							//alert('API CALL CryptoID error: '+url+data); icee
+							console.log(data);
+							//var json = $.parseJSON(data);
+						},
+						success: function(data) {
+							//alert('API call - success'); icee
+							//if($(data).find("result").text()==1){
+							//5221037d72903d0a671b9494d84ab2ca556d8cb4b49fd357652c3825f16170eb4d1dd82103f46a3f7b501870a525e08e69defabefc8320a29bcd6939b2c31103eed38e1b9552ae
+							
+							//if((data['unspent_outputs'][0]) ){
+							if (Object.keys(data['unspent_outputs']).length > 0){
+								//if(data['unspent_outputs'][0]['tx_hash']){
+									//alert("API CALL - INSIDE");
+									
+									//alert ( 'Sub objects: '+ Object.keys(data['unspent_outputs']).length );
+								
+									//if (Object.keys(data['unspent_outputs']).length > 0){
+										for(var i in data.unspent_outputs){
+											var o = data.unspent_outputs[i];
+											//var tx = ((""+o.txid).match(/.{1,2}/g).reverse()).join("")+'';
+												var tx = o.tx_hash;
+											
+												var n = o.tx_ouput_n;
+												var script = (redeem.isMultisig==true) ? $("#redeemFrom").val() : o.script;
+												var amount = o.value;
+												addOutput(tx, n, script, amount);
+										}
+									//}
+								
+									
+									
+									$("#redeemFromAddress").removeClass('hidden').html('<span class="glyphicon glyphicon-info-sign"></span> Retrieved unspent inputs from address <a href="https://chainz.cryptoid.info/bay/address.dws?'+redeem.addr+'.htm" target="_blank">'+redeem.addr+'</a>');
+									/*
+									alert(data['unspent_outputs'][0]['tx_hash']);
+
+									var tx = data['unspent_outputs'][0]['tx_hash'].text();
+									var n = data['unspent_outputs'][0]["tx_output_n"].text();
+									var script = (redeem.isMultisig==true) ? $("#redeemFrom").val() : o.script_hex;
+									var amount = ((data['unspent_outputs'][0]['value'].text()*1)/100000000).toFixed(8);
+									addOutput(tx, n, script, amount);
+										
+									
+									
+									$.each($(data).find("unspent_outputs").children(), function(i,o){
+										var tx = $(o).find("tx_hash").text();
+										var n = $(o).find("tx_output_n").text();
+										var script = (redeem.isMultisig==true) ? $("#redeemFrom").val() : o.script_hex;
+										var amount = (($(o).find("value").text()*1)/100000000).toFixed(8);
+										addOutput(tx, n, script, amount);
+									});
+									*/
+
+							} else {
+									$("#redeemFromStatus").removeClass('hidden').html('<span class="glyphicon glyphicon-exclamation-sign"></span> Unexpected error, unable to retrieve unspent outputs.');
+									alert('API CALL - No unspent outputs');
+							}
+						},
+						complete: function(data, status) {
+							$("#redeemFromBtn").html("Load").attr('disabled',false);
+							totalInputAmount();
+						}
+					});
+				}
+			},
+			broadcast: {
+				"cryptoz.me.api": function(thisbtn){
+					var orig_html = $(thisbtn).html();
+					
+					var api_key = "b8d99d015bfd";
+					
+					$(thisbtn).html('Please wait, loading... <span class="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span>').attr('disabled',true);
+					$.ajax ({
+						
+						type: "GET",
+						url: 'http://cryptoz.me/bitbay-playground/api/index.php?action=sendrawtransaction&key='+api_key,
+						//data: {'rawtx':$("#rawTransaction").val()},
+						data: {'sendrawtx':$("#rawTransaction").val()},
+						dataType: "json",
+						error: function(data) {
+							$("#rawTransactionStatus").addClass('alert-danger').removeClass('alert-success').removeClass("hidden").html(" There was an error submitting your request, please try again").prepend('<span class="glyphicon glyphicon-exclamation-sign"></span>');
+							console.log(data);
+						},
+						success: function(data) {
+							//$("#rawTransactionStatus").html(unescape($(data).find("response").text()).replace(/\+/g,' ')).removeClass('hidden');
+							//variable === null
+							
+							//Check for errors
+							if (data.status === 'success') { 
+								
+								$("#rawTransactionStatus").addClass('alert-success').removeClass('alert-danger');
+								$("#rawTransactionStatus").html('txid: '+$(data).find("txid").text());
+								$("#rawTransactionStatus").html('txid: '+data.txid+'<br />msg: '+data.txid);
+								$("#rawTransactionStatus").html('txid: '+data.txid+'<br />msg: '+data.txid);
+								
+								$("#rawTransactionStatus").html( $("#rawTransactionStatus").html() +'<hr /> ' +data.msg);
+								data.msg
+							}else { //if (data.status === 'error') { 
+								
+								//$("#rawTransactionStatus").html('txid: '+$(data).find("txid").text());
+								//$("#rawTransactionStatus").html(data.status + ' ' +data.msg).addClass('alert-danger').removeClass('alert-success').prepend('<span class="glyphicon glyphicon-exclamation-sign"></span> ');
+								$("#rawTransactionStatus").addClass('alert-danger').removeClass('alert-success').removeClass("hidden").html(' Unexpected error, please try again. <br />Response from server: ' +data.msg+'.').prepend('<span class="glyphicon glyphicon-exclamation-sign"></span>');
+								//$("#rawSubmitBtn").html('Broadcast <span class="glyphicon glyphicon-globe"></span>').attr('disabled',false);
+								$(thisbtn).html(orig_html).attr('disabled',false);
+							}
+							//baYeGqeyxr1wV5KQ3yUK1eU4g78DMPGcPq
+						},
+						complete: function(data, status) {
+							$("#rawTransactionStatus").fadeOut().fadeIn();
+							$(thisbtn).html(orig_html).attr('disabled',false);
+							
+						}
+					});
+				}
+			},
+			//fix-icee
+			getInputAmount: {
+				"chainz.cryptoid.info": function(txid, index, callback) {
+					//alert(txid + ' '+index +' callback' + callback);
+					/*
+					$.ajax ({
+						type: "GET",
+						//url: "https://btc.blockr.io/api/v1/tx/info/"+txid,
+						//https://chainz.cryptoid.info/bay/api.dws?q=txinfo&t=64ba4760ee281e7fc5f373b65b240420c163857bf53c59bea4d2a08b07ae956b
+						//https://chainz.cryptoid.info/bay/api.dws?q=txinfo&t=4478b93220589a71f59305b91bc09b7595396be20f1348f95152262b44022a00
+						
+						url: "https://chainz.cryptoid.info/bay/api.dws",
+						data: "q=txinfo&t="+txid,
+						
+						dataType: "json",
+						error: function(data) {
+							callback(false);
+						},
+						success: function(data) {
+							if (coinjs.debug) {console.log(data)};
+							if (Object.keys(data).length > 0){
+								//alert('getInputAmount: true');
+								//callback(12);
+								callback(parseInt(data.total_input*("1e"+coinjs.decimalPlaces), 10));
+							}else{
+								//alert('getInputAmount: false');
+								callback(false);
+							}
+							//if (data.status!='success' && data.data.vouts[index]){
+							//	callback(parseInt(data.data.vouts[index].amount*("1e"+coinjs.decimalPlaces), 10));
+							//} else {callback(false);}
+							
+						}
+					});
+					*/
 				}
 			}
 		},
@@ -1121,11 +1310,47 @@ $(document).ready(function() {
 	/* page load code */
 
 		/* open wallet code */
+/*
+	 @ Check Password
+	*/
+	checkPassword = function () {
+		var str = $('#openPass').val();
 
+			var msg = '';
+			if (str.length < 12) {
+				msg= ("too_short");
+			} else if (str.length > 255) {
+				msg= ("too_long");
+			} else if (str.search(/\d/) == -1) {
+				msg= ("no_num");
+			} else if (str.search(/[a-z]/) == -1) {
+				msg= ("no_lower_case");
+			} else if (str.search(/[A-Z]/) == -1) {
+				msg= ("no_upper_case");
+			} else if (str.search(/[^a-zA-Z0-9\!\@\#\$\%\^\&\*\(\)\_\+\.\=\,\;\:\!\-]/) != -1) {
+				msg= ("bad_char");
+			}else {
+				msg=("");
+				//$('.checkInputsPassword').addClass('hide')
+			}
+			if (msg != '') {
+				//$('.checkInputsError').removeClass('hide');
+				//$('.checkInputsPassword').removeClass('hide').html('Password: '+msg);
+				return false;
+			}else{
+				//$('.checkInputsPassword').addClass('hide').html('');
+				return true;
+			}
+		
+
+		
+	}
+	
 	$("#openBtn").click(function(){
 		var email = $("#openEmail").val().toLowerCase();
 		if(email.match(/[\s\w\d]+@[\s\w\d]+/g)){
-			if($("#openPass").val().length>=10){
+			//if($("#openPass").val().length>=10){
+			if( checkPassword() ){
 				if($("#openPass").val()==$("#openPassConfirm").val()){
 					var email = $("#openEmail").val().toLowerCase();
 					var pass = $("#openPass").val();
@@ -1165,7 +1390,7 @@ $(document).ready(function() {
 					$("#openLoginStatus").html("Your passwords do not match!").removeClass("hidden").fadeOut().fadeIn();
 				}
 			} else {
-				$("#openLoginStatus").html("Your password must be at least 10 chars long").removeClass("hidden").fadeOut().fadeIn();
+				$("#openLoginStatus").html("Your password must be at least 12 chars long and must include minimum least 1 special char, 1 uppercase letter and 1 lowercase letter.").removeClass("hidden").fadeOut().fadeIn();
 			}
 		} else {
 			$("#openLoginStatus").html("Your email address doesn't appear to be valid").removeClass("hidden").fadeOut().fadeIn();
@@ -1637,7 +1862,7 @@ $(document).ready(function() {
 
 			$("#transactionCreate").removeClass("hidden");
 
-			if($("#transactionFee").val()>=0.011){
+			if($("#transactionFee").val()>=0.01){
 				$("#modalWarningFeeAmount").html($("#transactionFee").val());
 				$("#modalWarningFee").modal("show");
 			}
@@ -1796,7 +2021,10 @@ $(document).ready(function() {
 				var tx = coinjs.transaction();
 				var t = tx.deserialize(script.val());
 
-				var signed = t.sign(wifkey.val());
+				//icee
+				//var signed = t.sign(wifkey.val());
+				var signed = t.sign(wifkey.val(), $("#sighashType option:selected").val());
+				
 				$("#signedData textarea").val(signed);
 				$("#signedData .txSize").html(t.size());
 				$("#signedData").removeClass('hidden').fadeIn();
@@ -1990,7 +2218,15 @@ $(document).ready(function() {
 		}
 		
 		// enable wallet if available
-		$("#openBtn").attr('disabled', (walletAvailableUnspent && walletAvailableBroadcast));
+		var wallet_enabled = false;
+		
+		if (walletAvailableUnspent && walletAvailableBroadcast)
+			wallet_disabled = false;
+		else
+			wallet_disabled = true;
+		$("#openBtn").attr('disabled', (wallet_disabled));
+		//alert('walletAvailableBroadcast' + wallet_enabled );//Icee
+		//alert('walletAvailableBroadcast' + walletAvailableBroadcast +' | walletAvailableUnspent:'+walletAvailableUnspent);//Icee
 
 		// deal with the reset
 		$("#coinjs_pub").val(o[0]);
@@ -2071,6 +2307,14 @@ $(document).ready(function() {
 		window.location.hash = "#verify";
 	}
 
+	var _getVerify = _get("transaction");
+	if(_getVerify[0]){
+		$("#redeemFrom").val(_getVerify[0]);
+		$("#redeemFromBtn").click();
+		window.location.hash = "#newTransaction";
+	}
+
+	
 	var _getAddress = _get("address");
 	if(_getAddress[0]){
 		$("#redeemFrom").val(_getAddress[0]);
