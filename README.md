@@ -3,9 +3,9 @@ Cointoolkit
 
 A Open Source Browser Based Bitcoin Wallet.
 
-Live version available at http://ttutdxh-nubits.github.io/cointoolkit/
+Live version available at https://anoxxxy.github.io/BitbayJS-A-fork-of-Coinb.in/
 
-Github URL: https://github.com/ttutdxh-nubits/cointoolkit
+Github URL: https://anoxxxy.github.io/BitbayJS-A-fork-of-Coinb.in/
 
 - Offline Compressed & uncompressed Address creation.
 - Offline Multisignature Address creation.
@@ -26,4 +26,3 @@ Github URL: https://github.com/ttutdxh-nubits/cointoolkit
 - HD (bip32) support
 - Supports altcoins such as litecoin
 
-Donate to 1JbsRVvU93PXN2JovuDE2NJTVNWkGEFrvx to see more development!
